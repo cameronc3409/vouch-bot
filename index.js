@@ -61,7 +61,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent // required for slash commands interaction
   ]
 });
 
@@ -113,7 +113,7 @@ client.on("interactionCreate", async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === "vouch") {
-    await interaction.deferReply({ ephemeral: true }); // updated for v14
+    await interaction.deferReply({ ephemeral: true });
 
     try {
       const product = interaction.options.getString("product");
