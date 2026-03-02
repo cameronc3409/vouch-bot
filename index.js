@@ -1,16 +1,33 @@
 // index.js
-const { 
-  Client, 
-  GatewayIntentBits, 
-  SlashCommandBuilder, 
-  EmbedBuilder, 
-  REST, 
+
+// ---------- IMPORTS ----------
+const express = require("express");
+const {
+  Client,
+  GatewayIntentBits,
+  SlashCommandBuilder,
+  EmbedBuilder,
+  REST,
   Routes,
   MessageFlags
 } = require("discord.js");
 const fs = require("fs");
 require("dotenv").config();
-const express = require("express");
+
+// ---------- EXPRESS SERVER FOR RENDER ----------
+const app = express();
+const PORT = process.env.PORT; // MUST use Render's provided port
+
+console.log("Starting web server...");
+
+app.get("/", (req, res) => {
+  res.status(200).send("Bot is running!");
+});
+
+// Bind to 0.0.0.0 so Render detects the open port
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("PORT OPENED ON " + PORT);
+});
 
 // ---------- CONFIG ----------
 const BOT_TOKEN = process.env.TOKEN;
@@ -18,18 +35,6 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = "1463364200540799040";
 const VOUCH_CHANNEL_ID = "1465800235673452722";
 const DATA_FILE = "./vouches.json";
-
-// ---------- EXPRESS SERVER FOR RENDER ----------
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Root route
-app.get("/", (req, res) => res.send("Bot is running!"));
-
-// Bind to 0.0.0.0 to ensure Render sees the port
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`PORT OPENED ON ${PORT}`);
-});
 
 // ---------- DATA HANDLING ----------
 function getData() {
@@ -125,7 +130,6 @@ client.on("interactionCreate", async interaction => {
       const starEmoji = "<:bluestar:1476760052106006598>";
       const stars = starEmoji.repeat(rating);
 
-      // Save data
       const data = getData();
       data.count += 1;
 
@@ -141,7 +145,6 @@ client.on("interactionCreate", async interaction => {
       data.vouches.push(newVouch);
       saveData(data);
 
-      // Create embed
       const embed = new EmbedBuilder()
         .setColor(0x4587ff)
         .setAuthor({
@@ -158,7 +161,6 @@ client.on("interactionCreate", async interaction => {
         .setFooter({ text: `Total Vouches: ${data.count}` })
         .setTimestamp();
 
-      // Send embed
       const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
 
       if (!channel) {
