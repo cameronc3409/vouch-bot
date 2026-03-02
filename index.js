@@ -61,7 +61,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent // required for slash commands interaction
+    GatewayIntentBits.MessageContent
   ]
 });
 
@@ -121,6 +121,7 @@ client.on("interactionCreate", async interaction => {
       const rating = interaction.options.getInteger("rating");
       const voucher = interaction.options.getUser("voucher");
 
+      // Prevent users from vouching for themselves
       if (voucher.id === interaction.user.id) {
         return await interaction.editReply({
           content: "You cannot vouch for yourself."
