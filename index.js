@@ -12,11 +12,11 @@ const {
   MessageFlags
 } = require("discord.js");
 const fs = require("fs");
-require("dotenv").config();
+require("dotenv").config(); // loads .env locally
 
 // ---------- EXPRESS SERVER FOR RENDER ----------
 const app = express();
-const PORT = process.env.PORT; // MUST use Render's provided port
+const PORT = process.env.PORT || 3000; // fallback for local testing
 
 console.log("Starting web server...");
 
@@ -26,7 +26,7 @@ app.get("/", (req, res) => {
 
 // Bind to 0.0.0.0 so Render detects the open port
 app.listen(PORT, "0.0.0.0", () => {
-  console.log("PORT OPENED ON " + PORT);
+  console.log(`PORT OPENED ON ${PORT}`);
 });
 
 // ---------- CONFIG ----------
@@ -104,7 +104,7 @@ client.once("ready", async () => {
 
     console.log("Slash command registered successfully");
   } catch (error) {
-    console.error(error);
+    console.error("Error registering commands:", error);
   }
 });
 
@@ -113,7 +113,7 @@ client.on("interactionCreate", async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === "vouch") {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await interaction.deferReply({ ephemeral: true }); // updated for v14
 
     try {
       const product = interaction.options.getString("product");
@@ -176,7 +176,7 @@ client.on("interactionCreate", async interaction => {
       });
 
     } catch (error) {
-      console.error(error);
+      console.error("Interaction error:", error);
 
       if (!interaction.replied) {
         await interaction.editReply({ content: "Something went wrong." });
