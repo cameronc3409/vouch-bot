@@ -8,15 +8,14 @@ const {
   SlashCommandBuilder,
   EmbedBuilder,
   REST,
-  Routes,
-  MessageFlags
+  Routes
 } = require("discord.js");
 const fs = require("fs");
-require("dotenv").config(); // loads .env locally
+require("dotenv").config();
 
 // ---------- EXPRESS SERVER FOR RENDER ----------
 const app = express();
-const PORT = process.env.PORT || 3000; // fallback for local testing
+const PORT = process.env.PORT || 3000;
 
 console.log("Starting web server...");
 
@@ -24,7 +23,6 @@ app.get("/", (req, res) => {
   res.status(200).send("Bot is running!");
 });
 
-// Bind to 0.0.0.0 so Render detects the open port
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`PORT OPENED ON ${PORT}`);
 });
@@ -61,7 +59,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent // required for slash commands interaction
+    GatewayIntentBits.MessageContent
   ]
 });
 
@@ -87,10 +85,10 @@ const commands = [
     .addUserOption(o =>
       o.setName("voucher")
         .setDescription("Who is giving the vouch")
-        .setRequired(false)) // now optional
+        .setRequired(false))
 ].map(c => c.toJSON());
 
-// ---------- REGISTER COMMANDS ----------
+// ---------- READY EVENT ----------
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
 
@@ -106,6 +104,44 @@ client.once("ready", async () => {
   } catch (error) {
     console.error("Error registering commands:", error);
   }
+
+  // ---------- STICKY MESSAGE ----------
+  try {
+    const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
+    if (!channel) return;
+
+    const messages = await channel.messages.fetch({ limit: 20 });
+
+    const existingSticky = messages.find(
+      msg =>
+        msg.author.id === client.user.id &&
+        msg.embeds.length > 0 &&
+        msg.embeds[0].title === "⭐ Sylix Vouch Channel"
+    );
+
+    if (!existingSticky) {
+      const stickyEmbed = new EmbedBuilder()
+        .setColor(0x4587ff)
+        .setTitle("⭐ Sylix Vouch Channel")
+        .setDescription(
+          "Welcome to the official vouch channel!\n\n" +
+          "• Use `/vouch` to leave a review.\n" +
+          "• Be honest and detailed.\n" +
+          "• Fake vouches will be removed.\n\n" +
+          "Thank you for supporting Sylix!"
+        )
+        .setFooter({ text: "This message is pinned." })
+        .setTimestamp();
+
+      const stickyMessage = await channel.send({ embeds: [stickyEmbed] });
+      await stickyMessage.pin();
+
+      console.log("Sticky message created and pinned.");
+    }
+
+  } catch (err) {
+    console.error("Error creating sticky message:", err);
+  }
 });
 
 // ---------- INTERACTION HANDLER ----------
@@ -119,7 +155,6 @@ client.on("interactionCreate", async interaction => {
       const product = interaction.options.getString("product");
       const description = interaction.options.getString("description");
       const rating = interaction.options.getInteger("rating");
-      // Auto-set voucher as command user if not provided
       const voucher = interaction.options.getUser("voucher") || interaction.user;
 
       const starEmoji = "<:bluestar:1476760052106006598>";
@@ -157,7 +192,6 @@ client.on("interactionCreate", async interaction => {
         .setTimestamp();
 
       const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
-
       if (!channel) {
         return await interaction.editReply({
           content: "Vouch channel not found."
