@@ -88,36 +88,6 @@ const commands = [
         .setRequired(false))
 ].map(c => c.toJSON());
 
-let stickyMessageId = null;
-const STICKY_TITLE = "⭐ Sylix Vouch Channel";
-
-// ---------- READY EVENT ----------
-client.once("ready", async () => {
-  console.log(`Logged in as ${client.user.tag}`);
-
-  const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
-
-  try {
-    await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      { body: commands }
-    );
-    console.log("Slash command registered successfully");
-  } catch (error) {
-    console.error("Error registering commands:", error);
-  }
-
-  // Post sticky on startup
-  try {
-    const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
-    if (channel) {
-      await postSticky(channel);
-    }
-  } catch (err) {
-    console.error("Sticky startup error:", err);
-  }
-});
-
 // ---------- AUTO STICKY SYSTEM ----------
 let stickyMessageId = null;
 const STICKY_TITLE = "⭐ Sylix Vouch Channel";
@@ -141,7 +111,23 @@ async function postSticky(channel) {
   stickyMessageId = msg.id;
 }
 
+// ---------- READY EVENT ----------
 client.once("ready", async () => {
+  console.log(`Logged in as ${client.user.tag}`);
+
+  // Register slash commands
+  const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+      { body: commands }
+    );
+    console.log("Slash command registered successfully");
+  } catch (error) {
+    console.error("Error registering commands:", error);
+  }
+
+  // Fetch vouch channel
   const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
   if (!channel) return;
 
@@ -161,9 +147,11 @@ client.once("ready", async () => {
     } catch {}
   }
 
+  // Post new sticky
   await postSticky(channel);
 });
 
+// ---------- AUTO STICKY LISTENER ----------
 client.on("messageCreate", async message => {
   if (message.author.bot) return; // Ignore bot messages
   if (message.channel.id !== VOUCH_CHANNEL_ID) return;
@@ -171,7 +159,7 @@ client.on("messageCreate", async message => {
   const channel = message.channel;
 
   try {
-    // Delete previous sticky
+    // Delete previous sticky if exists
     if (stickyMessageId) {
       try {
         const oldSticky = await channel.messages.fetch(stickyMessageId);
@@ -181,7 +169,6 @@ client.on("messageCreate", async message => {
     }
 
     await postSticky(channel);
-
   } catch (err) {
     console.error("Sticky error:", err);
   }
