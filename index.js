@@ -61,7 +61,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent // required for slash commands interaction
   ]
 });
 
@@ -87,7 +87,7 @@ const commands = [
     .addUserOption(o =>
       o.setName("voucher")
         .setDescription("Who is giving the vouch")
-        .setRequired(true))
+        .setRequired(false)) // now optional
 ].map(c => c.toJSON());
 
 // ---------- REGISTER COMMANDS ----------
@@ -119,14 +119,8 @@ client.on("interactionCreate", async interaction => {
       const product = interaction.options.getString("product");
       const description = interaction.options.getString("description");
       const rating = interaction.options.getInteger("rating");
-      const voucher = interaction.options.getUser("voucher");
-
-      // Prevent users from vouching for themselves
-      if (voucher.id === interaction.user.id) {
-        return await interaction.editReply({
-          content: "You cannot vouch for yourself."
-        });
-      }
+      // Auto-set voucher as command user if not provided
+      const voucher = interaction.options.getUser("voucher") || interaction.user;
 
       const starEmoji = "<:bluestar:1476760052106006598>";
       const stars = starEmoji.repeat(rating);
