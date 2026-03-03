@@ -88,6 +88,9 @@ const commands = [
         .setRequired(false))
 ].map(c => c.toJSON());
 
+// ---------- CUSTOM EMOJI ----------
+const STAR_EMOJI = "<:bluestar:1476760052106006598>";
+
 // ---------- AUTO STICKY SYSTEM ----------
 let stickyMessageId = null;
 const STICKY_TITLE = "⭐ Sylix Vouch Channel";
@@ -97,11 +100,11 @@ async function postSticky(channel) {
     .setColor(0x4587ff)
     .setTitle(STICKY_TITLE)
     .setDescription(
-      "Welcome to the official vouch channel!\n\n" +
-      "• Use `/vouch` to leave a review.\n" +
-      "• Be honest and detailed.\n" +
-      "• Fake vouches will be removed.\n\n" +
-      "Thank you for supporting Sylix!"
+      `Welcome to the official vouch channel!\n\n` +
+      `• Use /vouch to leave a review.\n` +
+      `• Be honest and detailed.\n` +
+      `• Fake vouches will be removed.\n\n` +
+      `Thank you for supporting Sylix! ${STAR_EMOJI}`
     )
     .setFooter({ text: "This message stays at the bottom." })
     .setTimestamp();
@@ -182,8 +185,7 @@ client.on("interactionCreate", async interaction => {
       const rating = interaction.options.getInteger("rating");
       const voucher = interaction.options.getUser("voucher") || interaction.user;
 
-      const starEmoji = "<:bluestar:1476760052106006598>";
-      const stars = starEmoji.repeat(rating);
+      const stars = STAR_EMOJI.repeat(rating);
 
       const data = getData();
       data.count += 1;
