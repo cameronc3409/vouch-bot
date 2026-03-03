@@ -88,6 +88,9 @@ const commands = [
         .setRequired(false))
 ].map(c => c.toJSON());
 
+let stickyMessageId = null;
+const STICKY_TITLE = "⭐ Sylix Vouch Channel";
+
 // ---------- READY EVENT ----------
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -99,48 +102,62 @@ client.once("ready", async () => {
       Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
       { body: commands }
     );
-
     console.log("Slash command registered successfully");
   } catch (error) {
     console.error("Error registering commands:", error);
   }
 
-  // ---------- STICKY MESSAGE ----------
+  // Post sticky on startup
   try {
     const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
-    if (!channel) return;
+    if (channel) {
+      await postSticky(channel);
+    }
+  } catch (err) {
+    console.error("Sticky startup error:", err);
+  }
+});
 
-    const messages = await channel.messages.fetch({ limit: 20 });
+// ---------- STICKY FUNCTION ----------
+async function postSticky(channel) {
+  const stickyEmbed = new EmbedBuilder()
+    .setColor(0x4587ff)
+    .setTitle(STICKY_TITLE)
+    .setDescription(
+      "Welcome to the official vouch channel!\n\n" +
+      "• Use `/vouch` to leave a review.\n" +
+      "• Be honest and detailed.\n" +
+      "• Fake vouches will be removed.\n\n" +
+      "Thank you for supporting Sylix!"
+    )
+    .setFooter({ text: "This message stays at the bottom." })
+    .setTimestamp();
 
-    const existingSticky = messages.find(
-      msg =>
-        msg.author.id === client.user.id &&
-        msg.embeds.length > 0 &&
-        msg.embeds[0].title === "⭐ Sylix Vouch Channel"
-    );
+  const msg = await channel.send({ embeds: [stickyEmbed] });
+  await msg.pin();
+  stickyMessageId = msg.id;
+}
 
-    if (!existingSticky) {
-      const stickyEmbed = new EmbedBuilder()
-        .setColor(0x4587ff)
-        .setTitle("⭐ Sylix Vouch Channel")
-        .setDescription(
-          "Welcome to the official vouch channel!\n\n" +
-          "• Use `/vouch` to leave a review.\n" +
-          "• Be honest and detailed.\n" +
-          "• Fake vouches will be removed.\n\n" +
-          "Thank you for supporting Sylix!"
-        )
-        .setFooter({ text: "This message is pinned." })
-        .setTimestamp();
+// ---------- AUTO STICKY LISTENER ----------
+client.on("messageCreate", async message => {
+  if (message.author.bot) return;
+  if (message.channel.id !== VOUCH_CHANNEL_ID) return;
 
-      const stickyMessage = await channel.send({ embeds: [stickyEmbed] });
-      await stickyMessage.pin();
+  try {
+    const channel = message.channel;
 
-      console.log("Sticky message created and pinned.");
+    // Delete old sticky if exists
+    if (stickyMessageId) {
+      try {
+        const oldSticky = await channel.messages.fetch(stickyMessageId);
+        await oldSticky.delete();
+      } catch {}
     }
 
+    await postSticky(channel);
+
   } catch (err) {
-    console.error("Error creating sticky message:", err);
+    console.error("Sticky error:", err);
   }
 });
 
