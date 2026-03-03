@@ -118,7 +118,10 @@ client.once("ready", async () => {
   }
 });
 
-// ---------- STICKY FUNCTION ----------
+// ---------- AUTO STICKY SYSTEM ----------
+let stickyMessageId = null;
+const STICKY_TITLE = "⭐ Sylix Vouch Channel";
+
 async function postSticky(channel) {
   const stickyEmbed = new EmbedBuilder()
     .setColor(0x4587ff)
@@ -138,19 +141,42 @@ async function postSticky(channel) {
   stickyMessageId = msg.id;
 }
 
-// ---------- AUTO STICKY LISTENER ----------
+client.once("ready", async () => {
+  const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
+  if (!channel) return;
+
+  // Remove old stickies created by the bot
+  const messages = await channel.messages.fetch({ limit: 50 });
+  const oldStickies = messages.filter(
+    m =>
+      m.author.id === client.user.id &&
+      m.embeds.length &&
+      m.embeds[0].title === STICKY_TITLE
+  );
+
+  for (const [, msg] of oldStickies) {
+    try {
+      await msg.unpin().catch(() => {});
+      await msg.delete().catch(() => {});
+    } catch {}
+  }
+
+  await postSticky(channel);
+});
+
 client.on("messageCreate", async message => {
-  if (message.author.bot) return;
+  if (message.author.bot) return; // Ignore bot messages
   if (message.channel.id !== VOUCH_CHANNEL_ID) return;
 
-  try {
-    const channel = message.channel;
+  const channel = message.channel;
 
-    // Delete old sticky if exists
+  try {
+    // Delete previous sticky
     if (stickyMessageId) {
       try {
         const oldSticky = await channel.messages.fetch(stickyMessageId);
-        await oldSticky.delete();
+        await oldSticky.unpin().catch(() => {});
+        await oldSticky.delete().catch(() => {});
       } catch {}
     }
 
