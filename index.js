@@ -95,22 +95,39 @@ const STAR_EMOJI = "<:bluestar:1476760052106006598>";
 let stickyMessageId = null;
 const STICKY_TITLE = `${STAR_EMOJI} Sylix Vouch Channel`;
 
-async function postSticky(channel) {
-  const stickyEmbed = new EmbedBuilder()
-    .setColor(0x4587ff)
-    .setTitle(STICKY_TITLE)
-    .setDescription(
-      `Welcome to the official vouch channel!\n\n` +
-      `• Use /vouch to leave a review.\n` +
-      `• Be honest and detailed.\n` +
-      `• Fake vouches will be removed.\n\n` +
-      `Thank you for supporting Sylix!`
-    )
-    .setFooter({ text: "This message stays at the bottom." })
-    .setTimestamp();
+async function ensureSticky(channel) {
+  try {
+    // Fetch last 20 messages to see if sticky already exists
+    const messages = await channel.messages.fetch({ limit: 20 });
+    const existing = messages.find(
+      m => m.author.id === client.user.id && m.embeds[0]?.title === STICKY_TITLE
+    );
 
-  const msg = await channel.send({ embeds: [stickyEmbed] });
-  stickyMessageId = msg.id;
+    if (existing) {
+      stickyMessageId = existing.id;
+      return existing;
+    }
+
+    // Create new sticky
+    const stickyEmbed = new EmbedBuilder()
+      .setColor(0x4587ff)
+      .setTitle(STICKY_TITLE)
+      .setDescription(
+        `Welcome to the official vouch channel!\n\n` +
+        `• Use /vouch to leave a review.\n` +
+        `• Be honest and detailed.\n` +
+        `• Fake vouches will be removed.\n\n` +
+        `Thank you for supporting Sylix!`
+      )
+      .setFooter({ text: "This message stays at the bottom." })
+      .setTimestamp();
+
+    const msg = await channel.send({ embeds: [stickyEmbed] });
+    stickyMessageId = msg.id;
+    return msg;
+  } catch (err) {
+    console.error("Sticky error:", err);
+  }
 }
 
 // ---------- READY EVENT ----------
@@ -131,48 +148,7 @@ client.once("ready", async () => {
   const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
   if (!channel) return;
 
-  const pinned = await channel.messages.fetchPinned();
-  const oldStickies = pinned.filter(
-    m => m.author.id === client.user.id && m.embeds[0]?.title === STICKY_TITLE
-  );
-
-  for (const [, msg] of oldStickies) {
-    try {
-      await msg.delete().catch(() => {});
-    } catch {}
-  }
-
-  await postSticky(channel);
-});
-
-// ---------- AUTO STICKY LISTENER ----------
-let isUpdatingSticky = false;
-
-client.on("messageCreate", async message => {
-  if (message.author.bot) return;
-  if (message.channel.id !== VOUCH_CHANNEL_ID) return;
-  if (isUpdatingSticky) return;
-
-  const channel = message.channel;
-
-  try {
-    isUpdatingSticky = true;
-
-    // Delete previous sticky if exists
-    if (stickyMessageId) {
-      try {
-        const oldSticky = await channel.messages.fetch(stickyMessageId);
-        if (oldSticky) await oldSticky.delete().catch(() => {});
-      } catch {}
-    }
-
-    await postSticky(channel);
-
-  } catch (err) {
-    console.error("Sticky error:", err);
-  } finally {
-    isUpdatingSticky = false;
-  }
+  await ensureSticky(channel);
 });
 
 // ---------- INTERACTION HANDLER ----------
@@ -229,6 +205,7 @@ client.on("interactionCreate", async interaction => {
       }
 
       await channel.send({ embeds: [embed] });
+      await ensureSticky(channel); // Keep sticky at the bottom
 
       await interaction.editReply({
         content: "Your vouch has been submitted successfully."
