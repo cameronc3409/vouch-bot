@@ -13,11 +13,9 @@ const {
 const fs = require("fs");
 require("dotenv").config();
 
-// ---------- EXPRESS SERVER FOR RENDER ----------
+// ---------- EXPRESS SERVER ----------
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-console.log("Starting web server...");
 
 app.get("/", (req, res) => {
   res.status(200).send("Bot is running!");
@@ -37,16 +35,13 @@ const DATA_FILE = "./vouches.json";
 // ---------- DATA HANDLING ----------
 function getData() {
   if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(
-      DATA_FILE,
-      JSON.stringify({ count: 0, vouches: [] }, null, 2)
-    );
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ vouches: [] }, null, 2));
   }
 
   try {
     return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
   } catch {
-    return { count: 0, vouches: [] };
+    return { vouches: [] };
   }
 }
 
@@ -54,7 +49,7 @@ function saveData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-// ---------- CREATE CLIENT ----------
+// ---------- CLIENT ----------
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -69,13 +64,9 @@ const commands = [
     .setName("vouch")
     .setDescription("Leave a vouch")
     .addStringOption(o =>
-      o.setName("product")
-        .setDescription("Product name")
-        .setRequired(true))
+      o.setName("product").setDescription("Product name").setRequired(true))
     .addStringOption(o =>
-      o.setName("description")
-        .setDescription("Vouch description")
-        .setRequired(true))
+      o.setName("description").setDescription("Vouch description").setRequired(true))
     .addIntegerOption(o =>
       o.setName("rating")
         .setDescription("Rating 1–5")
@@ -83,141 +74,138 @@ const commands = [
         .setMinValue(1)
         .setMaxValue(5))
     .addUserOption(o =>
-      o.setName("voucher")
-        .setDescription("Who is giving the vouch")
-        .setRequired(false))
+      o.setName("voucher").setDescription("Who is giving the vouch"))
 ].map(c => c.toJSON());
 
-// ---------- CUSTOM EMOJI ----------
+// ---------- STICKY ----------
 const STAR_EMOJI = "<:bluestar:1476760052106006598>";
-
-// ---------- AUTO STICKY SYSTEM ----------
-let stickyMessageId = null;
 const STICKY_TITLE = `${STAR_EMOJI} Sylix Vouch Channel`;
+let stickyMessageId = null;
+let movingSticky = false;
 
-async function ensureSticky(channel) {
-  try {
-    // Fetch last 20 messages to see if sticky already exists
-    const messages = await channel.messages.fetch({ limit: 20 });
-    const existing = messages.find(
-      m => m.author.id === client.user.id && m.embeds[0]?.title === STICKY_TITLE
-    );
+async function createSticky(channel) {
+  const embed = new EmbedBuilder()
+    .setColor(0x4587ff)
+    .setTitle(STICKY_TITLE)
+    .setDescription(
+      `Welcome to the official vouch channel!\n\n` +
+      `• Use /vouch to leave a review.\n` +
+      `• Be honest and detailed.\n` +
+      `• Fake vouches will be removed.\n\n` +
+      `Thank you for supporting Sylix!`
+    )
+    .setFooter({ text: "This message stays at the bottom." })
+    .setTimestamp();
 
-    if (existing) {
-      stickyMessageId = existing.id;
-      return existing;
-    }
-
-    // Create new sticky
-    const stickyEmbed = new EmbedBuilder()
-      .setColor(0x4587ff)
-      .setTitle(STICKY_TITLE)
-      .setDescription(
-        `Welcome to the official vouch channel!\n\n` +
-        `• Use /vouch to leave a review.\n` +
-        `• Be honest and detailed.\n` +
-        `• Fake vouches will be removed.\n\n` +
-        `Thank you for supporting Sylix!`
-      )
-      .setFooter({ text: "This message stays at the bottom." })
-      .setTimestamp();
-
-    const msg = await channel.send({ embeds: [stickyEmbed] });
-    stickyMessageId = msg.id;
-    return msg;
-  } catch (err) {
-    console.error("Sticky error:", err);
-  }
+  const msg = await channel.send({ embeds: [embed] });
+  stickyMessageId = msg.id;
+  return msg;
 }
 
-// ---------- READY EVENT ----------
+// ---------- READY ----------
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
 
   const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
-  try {
-    await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      { body: commands }
-    );
-    console.log("Slash command registered successfully");
-  } catch (error) {
-    console.error("Error registering commands:", error);
-  }
+  await rest.put(
+    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+    { body: commands }
+  );
 
   const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
-  if (!channel) return;
-
-  await ensureSticky(channel);
+  if (channel) await createSticky(channel);
 });
 
-// ---------- INTERACTION HANDLER ----------
+// ---------- AUTO MOVE STICKY ----------
+client.on("messageCreate", async message => {
+  if (movingSticky) return;
+  if (message.author.bot) return;
+  if (message.channel.id !== VOUCH_CHANNEL_ID) return;
+
+  movingSticky = true;
+
+  try {
+    if (stickyMessageId) {
+      try {
+        const oldSticky = await message.channel.messages.fetch(stickyMessageId);
+        if (oldSticky) await oldSticky.delete().catch(() => {});
+      } catch {}
+    }
+
+    await createSticky(message.channel);
+  } catch (err) {
+    console.error("Sticky move error:", err);
+  }
+
+  movingSticky = false;
+});
+
+// ---------- AUTO RECOVER ----------
+client.on("messageDelete", async message => {
+  if (!message.guild) return;
+  if (message.channel.id !== VOUCH_CHANNEL_ID) return;
+  if (message.id !== stickyMessageId) return;
+
+  const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
+  if (channel) await createSticky(channel);
+});
+
+// ---------- INTERACTION ----------
 client.on("interactionCreate", async interaction => {
   if (!interaction.isChatInputCommand()) return;
+  if (interaction.commandName !== "vouch") return;
 
-  if (interaction.commandName === "vouch") {
-    await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ ephemeral: true });
 
-    try {
-      const product = interaction.options.getString("product");
-      const description = interaction.options.getString("description");
-      const rating = interaction.options.getInteger("rating");
-      const voucher = interaction.options.getUser("voucher") || interaction.user;
+  try {
+    const product = interaction.options.getString("product");
+    const description = interaction.options.getString("description");
+    const rating = interaction.options.getInteger("rating");
+    const voucher = interaction.options.getUser("voucher") || interaction.user;
 
-      const stars = STAR_EMOJI.repeat(rating);
+    const stars = STAR_EMOJI.repeat(rating);
 
-      const data = getData();
-      data.count += 1;
+    const data = getData();
+    const newId = data.vouches.length + 1;
 
-      const newVouch = {
-        id: data.count,
-        product,
-        description,
-        rating,
-        voucherId: voucher.id,
-        date: new Date().toISOString()
-      };
+    data.vouches.push({
+      id: newId,
+      product,
+      description,
+      rating,
+      voucherId: voucher.id,
+      date: new Date().toISOString()
+    });
 
-      data.vouches.push(newVouch);
-      saveData(data);
+    saveData(data);
 
-      const embed = new EmbedBuilder()
-        .setColor(0x4587ff)
-        .setAuthor({
-          name: `${voucher.username} • Verified Customer`,
-          iconURL: voucher.displayAvatarURL()
-        })
-        .setTitle("Sylix.cc Vouches")
-        .setDescription(
-          `**Product**\n\`${product}\`\n\n` +
-          `**Rating**\n${stars}\n\n` +
-          `**Review**\n${description}`
-        )
-        .setThumbnail(voucher.displayAvatarURL({ size: 512 }))
-        .setFooter({ text: `Total Vouches: ${data.count}` })
-        .setTimestamp();
+    const embed = new EmbedBuilder()
+      .setColor(0x4587ff)
+      .setAuthor({
+        name: `${voucher.username} • Verified Customer`,
+        iconURL: voucher.displayAvatarURL()
+      })
+      .setTitle("Sylix.cc Vouches")
+      .setDescription(
+        `**Product**\n\`${product}\`\n\n` +
+        `**Rating**\n${stars}\n\n` +
+        `**Review**\n${description}`
+      )
+      .setThumbnail(voucher.displayAvatarURL({ size: 512 }))
+      .setFooter({ text: `Total Vouches: ${data.vouches.length}` })
+      .setTimestamp();
 
-      const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
-      if (!channel) {
-        return await interaction.editReply({
-          content: "Vouch channel not found."
-        });
-      }
-
-      await channel.send({ embeds: [embed] });
-      await ensureSticky(channel); // Keep sticky at the bottom
-
-      await interaction.editReply({
-        content: "Your vouch has been submitted successfully."
-      });
-
-    } catch (error) {
-      console.error("Interaction error:", error);
-
-      if (!interaction.replied) {
-        await interaction.editReply({ content: "Something went wrong." });
-      }
+    const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
+    if (!channel) {
+      return interaction.editReply({ content: "Vouch channel not found." });
     }
+
+    await channel.send({ embeds: [embed] });
+    await interaction.editReply({ content: "Your vouch has been submitted." });
+
+  } catch (err) {
+    console.error(err);
+    await interaction.editReply({ content: "Something went wrong." });
   }
 });
 
