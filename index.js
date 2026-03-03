@@ -37,7 +37,6 @@ function getData() {
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify({ vouches: [] }, null, 2));
   }
-
   try {
     return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
   } catch {
@@ -81,7 +80,7 @@ const commands = [
 const STAR_EMOJI = "<:bluestar:1476760052106006598>";
 const STICKY_TITLE = `${STAR_EMOJI} Sylix Vouch Channel`;
 let stickyMessageId = null;
-let movingSticky = false;
+const movingStickyChannels = new Set();
 
 async function createSticky(channel) {
   const embed = new EmbedBuilder()
@@ -125,13 +124,13 @@ client.once("ready", async () => {
   }
 });
 
-// ---------- AUTO MOVE STICKY ----------
+// ---------- AUTO MOVE STICKY (fixed) ----------
 client.on("messageCreate", async message => {
-  if (movingSticky) return;
   if (message.author.bot) return;
   if (message.channel.id !== VOUCH_CHANNEL_ID) return;
+  if (movingStickyChannels.has(message.channel.id)) return;
 
-  movingSticky = true;
+  movingStickyChannels.add(message.channel.id);
 
   try {
     if (stickyMessageId) {
@@ -145,7 +144,7 @@ client.on("messageCreate", async message => {
     console.error("Sticky move error:", err);
   }
 
-  movingSticky = false;
+  movingStickyChannels.delete(message.channel.id);
 });
 
 // ---------- AUTO RECOVER ----------
@@ -168,7 +167,7 @@ client.on("interactionCreate", async interaction => {
   if (interaction.commandName !== "vouch") return;
 
   try {
-    // Defer reply immediately (ephemeral)
+    // Defer reply immediately
     await interaction.deferReply({ flags: 64 });
 
     const product = interaction.options.getString("product");
