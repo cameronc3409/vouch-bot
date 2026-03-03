@@ -93,7 +93,7 @@ const STAR_EMOJI = "<:bluestar:1476760052106006598>";
 
 // ---------- AUTO STICKY SYSTEM ----------
 let stickyMessageId = null;
-const STICKY_TITLE = "⭐ Sylix Vouch Channel";
+const STICKY_TITLE = `${STAR_EMOJI} Sylix Vouch Channel`;
 
 async function postSticky(channel) {
   const stickyEmbed = new EmbedBuilder()
@@ -104,7 +104,7 @@ async function postSticky(channel) {
       `• Use /vouch to leave a review.\n` +
       `• Be honest and detailed.\n` +
       `• Fake vouches will be removed.\n\n` +
-      `Thank you for supporting Sylix! ${STAR_EMOJI}`
+      `Thank you for supporting Sylix!`
     )
     .setFooter({ text: "This message stays at the bottom." })
     .setTimestamp();
@@ -117,7 +117,6 @@ async function postSticky(channel) {
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
 
-  // Register slash commands
   const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
   try {
     await rest.put(
@@ -129,11 +128,9 @@ client.once("ready", async () => {
     console.error("Error registering commands:", error);
   }
 
-  // Fetch vouch channel
   const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
   if (!channel) return;
 
-  // Remove old stickies created by the bot
   const pinned = await channel.messages.fetchPinned();
   const oldStickies = pinned.filter(
     m => m.author.id === client.user.id && m.embeds[0]?.title === STICKY_TITLE
@@ -145,20 +142,18 @@ client.once("ready", async () => {
     } catch {}
   }
 
-  // Post new sticky
   await postSticky(channel);
 });
 
 // ---------- AUTO STICKY LISTENER ----------
 client.on("messageCreate", async message => {
-  if (message.author.bot) return; // ignore bots
+  if (message.author.bot) return;
   if (message.channel.id !== VOUCH_CHANNEL_ID) return;
-  if (message.embeds.length && message.embeds[0].title === STICKY_TITLE) return; // ignore sticky messages
+  if (message.embeds.length && message.embeds[0].title === STICKY_TITLE) return;
 
   const channel = message.channel;
 
   try {
-    // Delete previous sticky if exists
     if (stickyMessageId) {
       try {
         const oldSticky = await channel.messages.fetch(stickyMessageId);
