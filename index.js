@@ -107,7 +107,6 @@ async function postSticky(channel) {
     .setTimestamp();
 
   const msg = await channel.send({ embeds: [stickyEmbed] });
-  await msg.pin();
   stickyMessageId = msg.id;
 }
 
@@ -132,17 +131,13 @@ client.once("ready", async () => {
   if (!channel) return;
 
   // Remove old stickies created by the bot
-  const messages = await channel.messages.fetch({ limit: 50 });
-  const oldStickies = messages.filter(
-    m =>
-      m.author.id === client.user.id &&
-      m.embeds.length &&
-      m.embeds[0].title === STICKY_TITLE
+  const pinned = await channel.messages.fetchPinned();
+  const oldStickies = pinned.filter(
+    m => m.author.id === client.user.id && m.embeds[0]?.title === STICKY_TITLE
   );
 
   for (const [, msg] of oldStickies) {
     try {
-      await msg.unpin().catch(() => {});
       await msg.delete().catch(() => {});
     } catch {}
   }
@@ -153,8 +148,9 @@ client.once("ready", async () => {
 
 // ---------- AUTO STICKY LISTENER ----------
 client.on("messageCreate", async message => {
-  if (message.author.bot) return; // Ignore bot messages
+  if (message.author.bot) return; // ignore bots
   if (message.channel.id !== VOUCH_CHANNEL_ID) return;
+  if (message.embeds.length && message.embeds[0].title === STICKY_TITLE) return; // ignore sticky messages
 
   const channel = message.channel;
 
@@ -163,7 +159,6 @@ client.on("messageCreate", async message => {
     if (stickyMessageId) {
       try {
         const oldSticky = await channel.messages.fetch(stickyMessageId);
-        await oldSticky.unpin().catch(() => {});
         await oldSticky.delete().catch(() => {});
       } catch {}
     }
