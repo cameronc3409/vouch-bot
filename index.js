@@ -93,7 +93,7 @@ const STAR_EMOJI = "<:bluestar:1476760052106006598>";
 
 // ---------- AUTO STICKY SYSTEM ----------
 let stickyMessageId = null;
-const STICKY_TITLE = `${STAR_EMOJI} Sylix Vouch Channel`;
+const STICKY_TITLE = "⭐ Sylix Vouch Channel";
 
 async function postSticky(channel) {
   const stickyEmbed = new EmbedBuilder()
