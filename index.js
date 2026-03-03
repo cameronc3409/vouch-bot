@@ -79,7 +79,9 @@ const commands = [
 // ---------- STICKY ----------
 const STAR_EMOJI = "<:bluestar:1476760052106006598>";
 const STICKY_TITLE = `${STAR_EMOJI} Sylix Vouch Channel`;
+
 let stickyMessageId = null;
+let isMovingSticky = false; // 🔥 prevents double send
 const movingStickyChannels = new Set();
 
 async function createSticky(channel) {
@@ -106,6 +108,7 @@ client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
 
   const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
+
   try {
     await rest.put(
       Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
@@ -124,13 +127,14 @@ client.once("ready", async () => {
   }
 });
 
-// ---------- AUTO MOVE STICKY (fixed) ----------
+// ---------- AUTO MOVE STICKY ----------
 client.on("messageCreate", async message => {
   if (message.author.bot) return;
   if (message.channel.id !== VOUCH_CHANNEL_ID) return;
   if (movingStickyChannels.has(message.channel.id)) return;
 
   movingStickyChannels.add(message.channel.id);
+  isMovingSticky = true; // mark intentional move
 
   try {
     if (stickyMessageId) {
@@ -139,11 +143,14 @@ client.on("messageCreate", async message => {
         if (oldSticky) await oldSticky.delete().catch(() => {});
       } catch {}
     }
+
     await createSticky(message.channel);
+
   } catch (err) {
     console.error("Sticky move error:", err);
   }
 
+  isMovingSticky = false;
   movingStickyChannels.delete(message.channel.id);
 });
 
@@ -152,6 +159,7 @@ client.on("messageDelete", async message => {
   if (!message.guild) return;
   if (message.channel.id !== VOUCH_CHANNEL_ID) return;
   if (message.id !== stickyMessageId) return;
+  if (isMovingSticky) return; // 🔥 prevents duplicate recreate
 
   try {
     const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
@@ -167,7 +175,6 @@ client.on("interactionCreate", async interaction => {
   if (interaction.commandName !== "vouch") return;
 
   try {
-    // Defer reply immediately
     await interaction.deferReply({ flags: 64 });
 
     const product = interaction.options.getString("product");
