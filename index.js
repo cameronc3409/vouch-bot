@@ -107,13 +107,22 @@ client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
 
   const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
-  await rest.put(
-    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-    { body: commands }
-  );
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+      { body: commands }
+    );
+    console.log("Slash commands registered.");
+  } catch (err) {
+    console.error("Error registering commands:", err);
+  }
 
-  const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
-  if (channel) await createSticky(channel);
+  try {
+    const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
+    if (channel) await createSticky(channel);
+  } catch (err) {
+    console.error("Error creating sticky on startup:", err);
+  }
 });
 
 // ---------- AUTO MOVE STICKY ----------
@@ -131,7 +140,6 @@ client.on("messageCreate", async message => {
         if (oldSticky) await oldSticky.delete().catch(() => {});
       } catch {}
     }
-
     await createSticky(message.channel);
   } catch (err) {
     console.error("Sticky move error:", err);
@@ -146,8 +154,12 @@ client.on("messageDelete", async message => {
   if (message.channel.id !== VOUCH_CHANNEL_ID) return;
   if (message.id !== stickyMessageId) return;
 
-  const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
-  if (channel) await createSticky(channel);
+  try {
+    const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
+    if (channel) await createSticky(channel);
+  } catch (err) {
+    console.error("Sticky recover error:", err);
+  }
 });
 
 // ---------- INTERACTION ----------
@@ -155,9 +167,10 @@ client.on("interactionCreate", async interaction => {
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName !== "vouch") return;
 
-  await interaction.deferReply({ ephemeral: true });
-
   try {
+    // Defer reply immediately (ephemeral)
+    await interaction.deferReply({ flags: 64 });
+
     const product = interaction.options.getString("product");
     const description = interaction.options.getString("description");
     const rating = interaction.options.getInteger("rating");
@@ -197,15 +210,19 @@ client.on("interactionCreate", async interaction => {
 
     const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
     if (!channel) {
-      return interaction.editReply({ content: "Vouch channel not found." });
+      return await interaction.editReply({ content: "Vouch channel not found." });
     }
 
     await channel.send({ embeds: [embed] });
-    await interaction.editReply({ content: "Your vouch has been submitted." });
+    await interaction.editReply({ content: "✅ Your vouch has been submitted." });
 
   } catch (err) {
-    console.error(err);
-    await interaction.editReply({ content: "Something went wrong." });
+    console.error("Interaction error:", err);
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp({ content: "❌ Something went wrong.", ephemeral: true });
+    } else {
+      await interaction.reply({ content: "❌ Something went wrong.", ephemeral: true });
+    }
   }
 });
 
