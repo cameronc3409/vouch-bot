@@ -146,24 +146,32 @@ client.once("ready", async () => {
 });
 
 // ---------- AUTO STICKY LISTENER ----------
+let isUpdatingSticky = false;
+
 client.on("messageCreate", async message => {
   if (message.author.bot) return;
   if (message.channel.id !== VOUCH_CHANNEL_ID) return;
-  if (message.embeds.length && message.embeds[0].title === STICKY_TITLE) return;
+  if (isUpdatingSticky) return;
 
   const channel = message.channel;
 
   try {
+    isUpdatingSticky = true;
+
+    // Delete previous sticky if exists
     if (stickyMessageId) {
       try {
         const oldSticky = await channel.messages.fetch(stickyMessageId);
-        await oldSticky.delete().catch(() => {});
+        if (oldSticky) await oldSticky.delete().catch(() => {});
       } catch {}
     }
 
     await postSticky(channel);
+
   } catch (err) {
     console.error("Sticky error:", err);
+  } finally {
+    isUpdatingSticky = false;
   }
 });
 
