@@ -1,5 +1,7 @@
 // index.js
 
+console.log("BOT PROCESS STARTED");
+
 // ---------- IMPORTS ----------
 const express = require("express");
 const {
@@ -76,16 +78,12 @@ const commands = [
       o.setName("voucher").setDescription("Who is giving the vouch"))
 ].map(c => c.toJSON());
 
-// ---------- STICKY ----------
+// ---------- STICKY SYSTEM ----------
 const STAR_EMOJI = "<:bluestar:1476760052106006598>";
 const STICKY_TITLE = `${STAR_EMOJI} Sylix Vouch Channel`;
 
-let stickyMessageId = null;
-let isMovingSticky = false; // 🔥 prevents double send
-const movingStickyChannels = new Set();
-
-async function createSticky(channel) {
-  const embed = new EmbedBuilder()
+async function buildStickyEmbed() {
+  return new EmbedBuilder()
     .setColor(0x4587ff)
     .setTitle(STICKY_TITLE)
     .setDescription(
@@ -97,10 +95,60 @@ async function createSticky(channel) {
     )
     .setFooter({ text: "This message stays at the bottom." })
     .setTimestamp();
+}
 
-  const msg = await channel.send({ embeds: [embed] });
-  stickyMessageId = msg.id;
-  return msg;
+async function ensureSingleSticky(channel) {
+  const messages = await channel.messages.fetch({ limit: 25 });
+
+  const stickies = messages.filter(
+    m =>
+      m.author.id === client.user.id &&
+      m.embeds.length &&
+      m.embeds[0].title === STICKY_TITLE
+  );
+
+  // If multiple stickies exist → keep newest, delete rest
+  if (stickies.size > 1) {
+    const sorted = [...stickies.values()].sort(
+      (a, b) => b.createdTimestamp - a.createdTimestamp
+    );
+
+    const newest = sorted[0];
+
+    for (let i = 1; i < sorted.length; i++) {
+      await sorted[i].delete().catch(() => {});
+    }
+
+    return newest;
+  }
+
+  // If one exists → return it
+  if (stickies.size === 1) {
+    return stickies.first();
+  }
+
+  // If none exist → create one
+  const embed = await buildStickyEmbed();
+  return channel.send({ embeds: [embed] });
+}
+
+async function moveStickyToBottom(channel) {
+  const messages = await channel.messages.fetch({ limit: 10 });
+
+  const sticky = messages.find(
+    m =>
+      m.author.id === client.user.id &&
+      m.embeds.length &&
+      m.embeds[0].title === STICKY_TITLE
+  );
+
+  if (!sticky) {
+    return ensureSingleSticky(channel);
+  }
+
+  await sticky.delete().catch(() => {});
+  const embed = await buildStickyEmbed();
+  return channel.send({ embeds: [embed] });
 }
 
 // ---------- READY ----------
@@ -121,9 +169,9 @@ client.once("ready", async () => {
 
   try {
     const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
-    if (channel) await createSticky(channel);
+    if (channel) await ensureSingleSticky(channel);
   } catch (err) {
-    console.error("Error creating sticky on startup:", err);
+    console.error("Sticky startup error:", err);
   }
 });
 
@@ -131,41 +179,12 @@ client.once("ready", async () => {
 client.on("messageCreate", async message => {
   if (message.author.bot) return;
   if (message.channel.id !== VOUCH_CHANNEL_ID) return;
-  if (movingStickyChannels.has(message.channel.id)) return;
-
-  movingStickyChannels.add(message.channel.id);
-  isMovingSticky = true; // mark intentional move
 
   try {
-    if (stickyMessageId) {
-      try {
-        const oldSticky = await message.channel.messages.fetch(stickyMessageId);
-        if (oldSticky) await oldSticky.delete().catch(() => {});
-      } catch {}
-    }
-
-    await createSticky(message.channel);
-
+    await moveStickyToBottom(message.channel);
+    await ensureSingleSticky(message.channel);
   } catch (err) {
     console.error("Sticky move error:", err);
-  }
-
-  isMovingSticky = false;
-  movingStickyChannels.delete(message.channel.id);
-});
-
-// ---------- AUTO RECOVER ----------
-client.on("messageDelete", async message => {
-  if (!message.guild) return;
-  if (message.channel.id !== VOUCH_CHANNEL_ID) return;
-  if (message.id !== stickyMessageId) return;
-  if (isMovingSticky) return; // 🔥 prevents duplicate recreate
-
-  try {
-    const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
-    if (channel) await createSticky(channel);
-  } catch (err) {
-    console.error("Sticky recover error:", err);
   }
 });
 
@@ -175,7 +194,7 @@ client.on("interactionCreate", async interaction => {
   if (interaction.commandName !== "vouch") return;
 
   try {
-    await interaction.deferReply({ flags: 64 });
+    await interaction.deferReply({ ephemeral: true });
 
     const product = interaction.options.getString("product");
     const description = interaction.options.getString("description");
