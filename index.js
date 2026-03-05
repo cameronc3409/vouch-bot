@@ -32,6 +32,7 @@ const BOT_TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = "1463364200540799040";
 const VOUCH_CHANNEL_ID = "1465800235673452722";
+const WELCOME_CHANNEL_ID = "1465839225789354145";
 const DATA_FILE = "./vouches.json";
 
 // ---------- DATA HANDLING ----------
@@ -55,7 +56,8 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
   ]
 });
 
@@ -107,7 +109,6 @@ async function ensureSingleSticky(channel) {
       m.embeds[0].title === STICKY_TITLE
   );
 
-  // If multiple stickies exist → keep newest, delete rest
   if (stickies.size > 1) {
     const sorted = [...stickies.values()].sort(
       (a, b) => b.createdTimestamp - a.createdTimestamp
@@ -122,12 +123,10 @@ async function ensureSingleSticky(channel) {
     return newest;
   }
 
-  // If one exists → return it
   if (stickies.size === 1) {
     return stickies.first();
   }
 
-  // If none exist → create one
   const embed = await buildStickyEmbed();
   return channel.send({ embeds: [embed] });
 }
@@ -172,6 +171,31 @@ client.once("ready", async () => {
     if (channel) await ensureSingleSticky(channel);
   } catch (err) {
     console.error("Sticky startup error:", err);
+  }
+});
+
+// ---------- WELCOME SYSTEM ----------
+client.on("guildMemberAdd", async member => {
+  try {
+    const channel = await client.channels.fetch(WELCOME_CHANNEL_ID);
+    if (!channel) return;
+
+    const embed = new EmbedBuilder()
+      .setColor(0x4587ff)
+      .setTitle("Welcome to the Server!")
+      .setDescription(`Welcome ${member} to **${member.guild.name}**!`)
+      .setThumbnail(member.user.displayAvatarURL({ size: 512 }))
+      .addFields({
+        name: "Member Count",
+        value: `${member.guild.memberCount}`,
+        inline: true
+      })
+      .setTimestamp();
+
+    await channel.send({ embeds: [embed] });
+
+  } catch (err) {
+    console.error("Welcome error:", err);
   }
 });
 
