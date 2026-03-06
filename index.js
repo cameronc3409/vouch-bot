@@ -182,8 +182,8 @@ client.on("guildMemberAdd", async member => {
 
     const embed = new EmbedBuilder()
       .setColor(0x4587ff)
-      .setTitle(`Welcome to **${member.guild.name}** <@${member.id}>`) // tags the user
-      .setDescription(`**Welcome To Sylix!**
+      .setTitle(`Hi <@${member.id}>`) // tags the user
+      .setDescription(`**<:sylix:1468005258126163990> Welcome To Sylix.cc!**
 <:discordemoji:1479274884809883762> Check out our [website](https://sylix.cc/) if you are interested in purchasing
 <:discordemoji:1479274884809883762> If you need support please make a [ticket](https://discord.com/channels/1463364200540799040/1465800232502825275) after verifying
 <:discorde:1479274851444330570> Make sure to read all of the [rules](https://discord.com/channels/1463364200540799040/1465937574169411686) before chatting`)
