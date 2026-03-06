@@ -6,14 +6,7 @@ console.log("BOT PROCESS STARTED");
 const express = require("express");
 const fs = require("fs");
 require("dotenv").config();
-const {
-  Client,
-  GatewayIntentBits,
-  EmbedBuilder,
-  SlashCommandBuilder,
-  REST,
-  Routes
-} = require("discord.js");
+const { Client, GatewayIntentBits, EmbedBuilder, SlashCommandBuilder, REST, Routes } = require("discord.js");
 
 // ---------- CONFIG ----------
 const BOT_TOKEN = process.env.TOKEN;
@@ -82,35 +75,45 @@ async function buildStickyEmbed() {
 }
 
 async function ensureSingleSticky(channel) {
-  const messages = await channel.messages.fetch({ limit: 25 });
-  const stickies = messages.filter(
-    m => m.author.id === client.user.id && m.embeds.length && m.embeds[0].title === STICKY_TITLE
-  );
+  try {
+    const messages = await channel.messages.fetch({ limit: 25 });
+    const stickies = messages.filter(
+      m => m.author.id === client.user.id && m.embeds.length && m.embeds[0].title === STICKY_TITLE
+    );
 
-  if (stickies.size > 1) {
-    const sorted = [...stickies.values()].sort((a, b) => b.createdTimestamp - a.createdTimestamp);
-    const newest = sorted[0];
-    for (let i = 1; i < sorted.length; i++) await sorted[i].delete().catch(() => {});
-    return newest;
+    if (stickies.size > 1) {
+      const sorted = [...stickies.values()].sort((a, b) => b.createdTimestamp - a.createdTimestamp);
+      const newest = sorted[0];
+      for (let i = 1; i < sorted.length; i++) await sorted[i].delete().catch(() => {});
+      return newest;
+    }
+
+    if (stickies.size === 1) return stickies.first();
+
+    const embed = await buildStickyEmbed();
+    return channel.send({ embeds: [embed] });
+  } catch (err) {
+    console.error("Error ensuring sticky:", err);
+    return null;
   }
-
-  if (stickies.size === 1) return stickies.first();
-
-  const embed = await buildStickyEmbed();
-  return channel.send({ embeds: [embed] });
 }
 
 async function moveStickyToBottom(channel) {
-  const messages = await channel.messages.fetch({ limit: 10 });
-  const sticky = messages.find(
-    m => m.author.id === client.user.id && m.embeds.length && m.embeds[0].title === STICKY_TITLE
-  );
+  try {
+    const messages = await channel.messages.fetch({ limit: 10 });
+    const sticky = messages.find(
+      m => m.author.id === client.user.id && m.embeds.length && m.embeds[0].title === STICKY_TITLE
+    );
 
-  if (!sticky) return ensureSingleSticky(channel);
+    if (!sticky) return ensureSingleSticky(channel);
 
-  await sticky.delete().catch(() => {});
-  const embed = await buildStickyEmbed();
-  return channel.send({ embeds: [embed] });
+    await sticky.delete().catch(() => {});
+    const embed = await buildStickyEmbed();
+    return channel.send({ embeds: [embed] });
+  } catch (err) {
+    console.error("Error moving sticky:", err);
+    return null;
+  }
 }
 
 // ---------- READY ----------
@@ -130,47 +133,45 @@ client.once("ready", async () => {
 });
 
 // ---------- WELCOME ----------
-let welcomeFired = new Set(); // Prevent duplicates in same session
+const welcomeFired = new Set();
 
 client.on("guildMemberAdd", async member => {
-  if (welcomeFired.has(member.id)) return;
+  if (!member || welcomeFired.has(member.id)) return;
   welcomeFired.add(member.id);
 
   try {
-    const channel = await client.channels.fetch(WELCOME_CHANNEL_ID);
+    const channel = await client.channels.fetch(WELCOME_CHANNEL_ID).catch(() => null);
     if (!channel) return;
 
     const embed = new EmbedBuilder()
       .setColor(0x4587ff)
-      .setTitle(`Hi <@${member.id}>`) // tags the user
-      .setDescription(`**Welcome To Sylix.cc!**
+      .setTitle(`Hi <@${member.id}>`)
+      .setDescription(`**<:sylix:1468005258126163990> Welcome To Sylix.cc!**
 <:discordemoji:1479274884809883762> Check out our [website](https://sylix.cc/) if you are interested in purchasing
 <:discordemoji:1479274884809883762> If you need support please make a [ticket](https://discord.com/channels/1463364200540799040/1465800232502825275) after verifying
 <:discorde:1479274851444330570> Make sure to read all of the [rules](https://discord.com/channels/1463364200540799040/1465937574169411686) before chatting`)
       .setThumbnail("https://i.ibb.co/ymn10dMY/your-image.png")
-      .setFooter({
-        text: `Sylix • Welcome System • Member #${member.guild.memberCount}`,
-        iconURL: member.guild.iconURL()
-      });
+      .setFooter({ text: `Sylix • Welcome System • Member #${member.guild.memberCount}`, iconURL: member.guild.iconURL() });
 
-    await channel.send({ embeds: [embed] });
-  } catch (error) {
-    console.error("Error sending welcome message:", error);
+    await channel.send({ embeds: [embed] }).catch(console.error);
+  } catch (err) {
+    console.error("Welcome event error:", err);
   } finally {
-    // Remove after 10 seconds to allow re-firing for new joins
+    // Remove from set after 10 seconds so it can fire again for new joins
     setTimeout(() => welcomeFired.delete(member.id), 10000);
   }
 });
 
 // ---------- AUTO MOVE STICKY ----------
 client.on("messageCreate", async message => {
-  if (message.author.bot) return;
-  if (message.channel.id !== VOUCH_CHANNEL_ID) return;
+  if (message.author.bot || message.channel.id !== VOUCH_CHANNEL_ID) return;
 
   try {
     await moveStickyToBottom(message.channel);
     await ensureSingleSticky(message.channel);
-  } catch (err) { console.error("Sticky move error:", err); }
+  } catch (err) {
+    console.error("Message create sticky error:", err);
+  }
 });
 
 // ---------- INTERACTION ----------
@@ -188,7 +189,6 @@ client.on("interactionCreate", async interaction => {
 
     const data = getData();
     const newId = data.vouches.length + 1;
-
     data.vouches.push({
       id: newId,
       product,
@@ -208,7 +208,7 @@ client.on("interactionCreate", async interaction => {
       .setFooter({ text: `Total Vouches: ${data.vouches.length}` })
       .setTimestamp();
 
-    const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
+    const channel = await client.channels.fetch(VOUCH_CHANNEL_ID).catch(() => null);
     if (!channel) return await interaction.editReply({ content: "Vouch channel not found." });
 
     await channel.send({ embeds: [embed] });
@@ -224,4 +224,4 @@ client.on("interactionCreate", async interaction => {
 });
 
 // ---------- LOGIN ----------
-client.login(BOT_TOKEN);
+client.login(BOT_TOKEN).catch(err => console.error("Bot login failed:", err));
