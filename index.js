@@ -109,13 +109,13 @@ function buildSticky() {
   return new EmbedBuilder()
     .setColor(0x4587ff)
     .setTitle(STICKY_TITLE)
-    .setDescription(
-      "Welcome to the official vouch channel!\n\n" +
-      "• Use /vouch to leave a review\n" +
-      "• Be honest and detailed\n" +
-      "• Fake vouches will be removed
-
-	Thank you for supporting Sylix!"
+   .setDescription(
+  "Welcome to the official vouch channel!\n\n" +
+  "• Use /vouch to leave a review\n" +
+  "• Be honest and detailed\n" +
+  "• Fake vouches will be removed\n\n" +
+  "Thank you for supporting Sylix!"
+)
     )
     .setFooter({ text: "This message stays at the bottom." })
     .setTimestamp();
