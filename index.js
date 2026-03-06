@@ -133,32 +133,30 @@ client.once("ready", async () => {
 });
 
 // ---------- WELCOME ----------
-const welcomeFired = new Set();
+const botReadyTime = Date.now(); // bot start time
 
 client.on("guildMemberAdd", async member => {
-  if (!member || welcomeFired.has(member.id)) return;
-  welcomeFired.add(member.id);
-
   try {
+    // Prevent sending welcome for members who joined before bot started
+    if (member.joinedTimestamp < botReadyTime) return;
+
     const channel = await client.channels.fetch(WELCOME_CHANNEL_ID).catch(() => null);
     if (!channel) return;
 
     const embed = new EmbedBuilder()
       .setColor(0x4587ff)
-      .setTitle(`hi <@${member.id}>`)
-      .setDescription(`**Welcome To Sylix.cc!**
-<:discordemoji:1479274884809883762> Check out our [website](https://sylix.cc/) if you are interested in purchasing
-<:discordemoji:1479274884809883762> If you need support please make a [ticket](https://discord.com/channels/1463364200540799040/1465800232502825275) after verifying
-<:discorde:1479274851444330570> Make sure to read all of the [rules](https://discord.com/channels/1463364200540799040/1465937574169411686) before chatting`)
+      .setTitle(`Hi <@${member.id}>`)
+      .setDescription(`**<:sylix:1468005258126163990> Welcome To Sylix.cc!**
+<:discordemoji:1479274884809883762> Check out our [website](https://sylix.cc/)
+<:discordemoji:1479274884809883762> If you need support please make a [ticket](https://discord.com/channels/1463364200540799040/1465800232502825275)
+<:discorde:1479274851444330570> Make sure to read all of the [rules](https://discord.com/channels/1463364200540799040/1465937574169411686)`)
       .setThumbnail("https://i.ibb.co/ymn10dMY/your-image.png")
-      .setFooter({ text: `Sylix • Member #${member.guild.memberCount}`, iconURL: member.guild.iconURL() });
+      .setFooter({ text: `Sylix • Welcome System • Member #${member.guild.memberCount}`, iconURL: member.guild.iconURL() });
 
     await channel.send({ embeds: [embed] }).catch(console.error);
+
   } catch (err) {
     console.error("Welcome event error:", err);
-  } finally {
-    // Remove from set after 10 seconds so it can fire again for new joins
-    setTimeout(() => welcomeFired.delete(member.id), 10000);
   }
 });
 
