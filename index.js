@@ -113,7 +113,9 @@ function buildSticky() {
       "Welcome to the official vouch channel!\n\n" +
       "• Use /vouch to leave a review\n" +
       "• Be honest and detailed\n" +
-      "• Fake vouches will be removed"
+      "• Fake vouches will be removed
+
+	Thank you for supporting Sylix!"
     )
     .setFooter({ text: "This message stays at the bottom." })
     .setTimestamp();
