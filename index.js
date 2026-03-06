@@ -181,27 +181,20 @@ client.on("guildMemberAdd", async member => {
     const channel = await client.channels.fetch(WELCOME_CHANNEL_ID);
     if (!channel) return;
 
-    const embed = new EmbedBuilder()
-     .setColor(0x4587ff)
-.setTitle(`Welcome to **${member.guild.name}** ${member}`)
-.setDescription(`**Welcome To Sylix!**
+const embed = new EmbedBuilder()
+  .setColor(0x4587ff)
+  .setTitle(`Welcome to **${member.guild.name}** <@${member.id}>`) // tags the user
+  .setDescription(`**Welcome To Sylix!**
 <:discordemoji:1479274884809883762> Check out our [website](https://sylix.cc/) if you are interested in purchasing
 <:discordemoji:1479274884809883762> If you need support please make a [ticket](https://discord.com/channels/1463364200540799040/1465800232502825275) after verifying
 <:discorde:1479274851444330570> Make sure to read all of the [rules](https://discord.com/channels/1463364200540799040/1465937574169411686) before chatting`)
-      .setThumbnail("https://i.ibb.co/ymn10dMY/your-image.png")
-      .addFields([
-        {
-          name: "Member Count",
-          value: `${member.guild.memberCount}`,
-          inline: true
-        }
-      ])
-      .setFooter({
-        text: "Sylix • Welcome System",
-        iconURL: member.guild.iconURL()
-      });
-
-    await channel.send({ embeds: [embed] });
+  .setThumbnail("https://i.ibb.co/ymn10dMY/your-image.png")
+  // Optional: You can remove addFields if you don't need extra fields
+  // .addFields([{ name: "Some Field", value: "Some Value" }])
+  .setFooter({
+    text: `Sylix • Welcome System • Member #${member.guild.memberCount}`,
+    iconURL: member.guild.iconURL()
+  });
   } catch (error) {
     console.error("Error sending welcome message:", error);
   }
