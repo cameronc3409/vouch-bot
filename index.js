@@ -185,7 +185,7 @@ client.on("guildMemberAdd", async member => {
      .setColor(0x4587ff)
 .setTitle(`Welcome to **${member.guild.name}** ${member}`)
 .setDescription(`**Welcome To Sylix!**
-<:discordemoji:1479274884809883762> Check out our [website](https://sylix.cc/) if you are interested in purchasing something
+<:discordemoji:1479274884809883762> Check out our [website](https://sylix.cc/) if you are interested in purchasing
 <:discordemoji:1479274884809883762> If you need support please make a [ticket](https://discord.com/channels/1463364200540799040/1465800232502825275) after verifying
 <:discorde:1479274851444330570> Make sure to read all of the [rules](https://discord.com/channels/1463364200540799040/1465937574169411686) before chatting`)
       .setThumbnail("https://i.ibb.co/ymn10dMY/your-image.png")
