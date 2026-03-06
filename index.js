@@ -1,4 +1,3 @@
-```javascript
 // ---------- index.js ----------
 
 console.log("BOT PROCESS STARTED");
@@ -32,9 +31,9 @@ const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => res.status(200).send("Bot is running!"));
 
-app.listen(PORT, "0.0.0.0", () => 
-  console.log(`PORT OPENED ON ${PORT}`)
-);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`PORT OPENED ON ${PORT}`);
+});
 
 // ---------- DATA HANDLING ----------
 function getData() {
@@ -338,4 +337,3 @@ ${description}`
 // ---------- LOGIN ----------
 client.login(BOT_TOKEN)
 .catch(err => console.error("Bot login failed:", err));
-```
