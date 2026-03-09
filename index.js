@@ -310,6 +310,10 @@ ${description}`
 
     await channel.send({ embeds: [embed] });
 
+    // ---------- FIXED: MOVE STICKY AFTER VOUCH ----------
+    await moveStickyToBottom(channel);
+    await ensureSingleSticky(channel);
+
     await interaction.editReply({
       content: "✅ Your vouch has been submitted."
     });
