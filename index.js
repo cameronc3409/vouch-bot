@@ -220,7 +220,7 @@ client.on("guildMemberAdd", async member => {
       )
       .setThumbnail("https://i.ibb.co/ymn10dMY/your-image.png")
       .setFooter({
-        text: `Sylix • Welcome System • Member #${member.guild.memberCount}`,
+        text: `Sylix • Member #${member.guild.memberCount}`,
         iconURL: member.guild.iconURL()
       });
 
