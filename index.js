@@ -195,7 +195,7 @@ client.once("ready", async () => {
 });
 
 // ---------- WELCOME ----------
-client.on("guildMemberAdd", async member => {
+client.on("guildMemberAdd", async (member) => {
 
   try {
 
@@ -205,7 +205,6 @@ client.on("guildMemberAdd", async member => {
 
     if (!channel) return;
 
-    // Check recent messages to prevent duplicate welcomes
     const messages = await channel.messages.fetch({ limit: 20 });
 
     const alreadyWelcomed = messages.find(m =>
@@ -232,6 +231,14 @@ client.on("guildMemberAdd", async member => {
         text: `Sylix • Member #${member.guild.memberCount}`,
         iconURL: member.guild.iconURL()
       });
+
+    await channel.send({ embeds: [embed] });
+
+  } catch (err) {
+    console.error("Welcome event error:", err);
+  }
+
+});
 
     await channel.send({ embeds: [embed] });
 
