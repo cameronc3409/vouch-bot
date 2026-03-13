@@ -240,22 +240,6 @@ client.on("guildMemberAdd", async (member) => {
 
 });
 
-    await channel.send({ embeds: [embed] });
-
-  } catch (err) {
-    console.error("Welcome event error:", err);
-  }
-
-});
-
-    await channel.send({ embeds: [embed] });
-
-  } catch (err) {
-    console.error("Welcome event error:", err);
-  }
-
-});
-
 // ---------- AUTO MOVE STICKY ----------
 client.on("messageCreate", async message => {
 
