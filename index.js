@@ -1,4 +1,3 @@
-```javascript
 // ---------- index.js ----------
 
 console.log("BOT PROCESS STARTED");
@@ -35,7 +34,7 @@ const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => res.status(200).send("Bot is running!"));
 
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, () => {
   console.log(`PORT OPENED ON ${PORT}`);
 });
 
@@ -343,5 +342,8 @@ ${description}`
 
 // ---------- LOGIN ----------
 client.login(BOT_TOKEN)
-.catch(err => console.error("Bot login failed:", err));
-```
+  .then(() => console.log("Bot logged in successfully."))
+  .catch(err => {
+    console.error("Bot login failed:", err);
+    // Server stays alive even if Discord login fails
+  });
