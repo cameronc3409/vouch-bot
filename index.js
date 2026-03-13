@@ -25,6 +25,9 @@ const VOUCH_CHANNEL_ID = "1465800235673452722";
 const WELCOME_CHANNEL_ID = "1465839225789354145";
 const DATA_FILE = "./vouches.json";
 
+// ---------- WELCOME DUPLICATE PROTECTION ----------
+const welcomedUsers = new Set();
+
 // ---------- EXPRESS SERVER ----------
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -164,7 +167,7 @@ async function moveStickyToBottom(channel) {
 }
 
 // ---------- READY ----------
-client.once("ready", async () => {
+client.once("clientReady", async () => {
 
   console.log(`Logged in as ${client.user.tag}`);
 
@@ -197,25 +200,15 @@ client.once("ready", async () => {
 // ---------- WELCOME ----------
 client.on("guildMemberAdd", async (member) => {
 
+  if (welcomedUsers.has(member.id)) return;
+  welcomedUsers.add(member.id);
+
   try {
     const channel = await client.channels
       .fetch(WELCOME_CHANNEL_ID)
       .catch(() => null);
 
     if (!channel) return;
-
-    // Fetch more messages to reliably detect previous welcomes
-    const messages = await channel.messages.fetch({ limit: 100 });
-
-    // Check for a previous welcome using a hidden identifier in the embed
-    const alreadyWelcomed = messages.find(m =>
-      m.author.id === client.user.id &&
-      m.embeds.length &&
-      m.embeds[0].description &&
-      m.embeds[0].description.includes(`<!-- SylixWelcome:${member.id} -->`)
-    );
-
-    if (alreadyWelcomed) return; // Stop if already welcomed
 
     const embed = new EmbedBuilder()
       .setColor(0x4587ff)
@@ -225,9 +218,7 @@ client.on("guildMemberAdd", async (member) => {
 <:discordemoji:1479274884809883762> Please make sure to [verify](https://discord.com/channels/1463364200540799040/1465839281808609381) to gain full access
 <:discordemoji:1479274884809883762> Check out our [website](https://sylix.cc/)
 <:discordemoji:1479274884809883762> If you need support please make a [ticket](https://discord.com/channels/1463364200540799040/1465800232502825275)
-<:discorde:1479274851444330570> Make sure to read all of the [rules](https://discord.com/channels/1463364200540799040/1465937574169411686)
-
-<!-- SylixWelcome:${member.id} -->` // hidden identifier
+<:discorde:1479274851444330570> Make sure to read all of the [rules](https://discord.com/channels/1463364200540799040/1465937574169411686)`
       )
       .setThumbnail("https://i.ibb.co/ymn10dMY/your-image.png")
       .setFooter({
@@ -321,7 +312,6 @@ ${description}`
 
     await channel.send({ embeds: [embed] });
 
-    // ---------- FIXED: MOVE STICKY AFTER VOUCH ----------
     await moveStickyToBottom(channel);
     await ensureSingleSticky(channel);
 
