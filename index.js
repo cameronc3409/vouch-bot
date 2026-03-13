@@ -195,14 +195,9 @@ client.once("ready", async () => {
 });
 
 // ---------- WELCOME ----------
-const welcomedUsers = new Set();
-
 client.on("guildMemberAdd", async member => {
 
   try {
-
-    if (welcomedUsers.has(member.id)) return;
-    welcomedUsers.add(member.id);
 
     const channel = await client.channels
       .fetch(WELCOME_CHANNEL_ID)
@@ -210,9 +205,21 @@ client.on("guildMemberAdd", async member => {
 
     if (!channel) return;
 
+    // Check recent messages to prevent duplicate welcomes
+    const messages = await channel.messages.fetch({ limit: 20 });
+
+    const alreadyWelcomed = messages.find(m =>
+      m.author.id === client.user.id &&
+      m.embeds.length &&
+      m.embeds[0].description &&
+      m.embeds[0].description.includes(member.id)
+    );
+
+    if (alreadyWelcomed) return;
+
     const embed = new EmbedBuilder()
       .setColor(0x4587ff)
-      .setTitle(`hi`)
+      .setTitle("hi")
       .setDescription(
 `**<:sylix:1468005258126163990> Welcome To Sylix.cc <@${member.id}>**
 <:discordemoji:1479274884809883762> Please make sure to [verify](https://discord.com/channels/1463364200540799040/1465839281808609381) to gain full access
@@ -225,6 +232,14 @@ client.on("guildMemberAdd", async member => {
         text: `Sylix • Member #${member.guild.memberCount}`,
         iconURL: member.guild.iconURL()
       });
+
+    await channel.send({ embeds: [embed] });
+
+  } catch (err) {
+    console.error("Welcome event error:", err);
+  }
+
+});
 
     await channel.send({ embeds: [embed] });
 
