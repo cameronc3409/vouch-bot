@@ -195,13 +195,14 @@ client.once("ready", async () => {
 });
 
 // ---------- WELCOME ----------
-const botReadyTime = Date.now();
+const welcomedUsers = new Set();
 
 client.on("guildMemberAdd", async member => {
 
   try {
 
-    if (member.joinedTimestamp < botReadyTime) return;
+    if (welcomedUsers.has(member.id)) return;
+    welcomedUsers.add(member.id);
 
     const channel = await client.channels
       .fetch(WELCOME_CHANNEL_ID)
@@ -211,7 +212,7 @@ client.on("guildMemberAdd", async member => {
 
     const embed = new EmbedBuilder()
       .setColor(0x4587ff)
-      .setTitle(`**hi**`)
+      .setTitle(`hi`)
       .setDescription(
 `**<:sylix:1468005258126163990> Welcome To Sylix.cc <@${member.id}>**
 <:discordemoji:1479274884809883762> Please make sure to [verify](https://discord.com/channels/1463364200540799040/1465839281808609381) to gain full access
