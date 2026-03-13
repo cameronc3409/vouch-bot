@@ -210,6 +210,9 @@ client.on("guildMemberAdd", async (member) => {
 
     if (!channel) return;
 
+    // send normal text ping first
+    await channel.send(`hi <@${member.id}>`);
+
     const embed = new EmbedBuilder()
       .setColor(0x4587ff)
       .setTitle("Welcome!")
