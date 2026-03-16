@@ -200,15 +200,22 @@ client.once("clientReady", async () => {
 // ---------- WELCOME ----------
 client.on("guildMemberAdd", async (member) => {
 
-  if (welcomedUsers.has(member.id)) return;
-  welcomedUsers.add(member.id);
-
   try {
     const channel = await client.channels
       .fetch(WELCOME_CHANNEL_ID)
       .catch(() => null);
 
     if (!channel) return;
+
+    // Check last messages to prevent duplicate welcomes
+    const messages = await channel.messages.fetch({ limit: 20 });
+
+    const alreadyWelcomed = messages.some(msg =>
+      msg.author.id === client.user.id &&
+      msg.mentions.users.has(member.id)
+    );
+
+    if (alreadyWelcomed) return;
 
     const embed = new EmbedBuilder()
       .setColor(0x4587ff)
@@ -230,6 +237,12 @@ client.on("guildMemberAdd", async (member) => {
       content: `<@${member.id}>`,
       embeds: [embed]
     });
+
+  } catch (err) {
+    console.error("Welcome event error:", err);
+  }
+
+});
 
   } catch (err) {
     console.error("Welcome event error:", err);
