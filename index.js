@@ -167,7 +167,7 @@ async function moveStickyToBottom(channel) {
 }
 
 // ---------- READY ----------
-client.once("clientReady", async () => {
+client.once("ready", async () => {
 
   console.log(`Logged in as ${client.user.tag}`);
 
@@ -201,13 +201,10 @@ client.once("clientReady", async () => {
 client.on("guildMemberAdd", async (member) => {
 
   try {
-    const channel = await client.channels
-      .fetch(WELCOME_CHANNEL_ID)
-      .catch(() => null);
 
+    const channel = await client.channels.fetch(WELCOME_CHANNEL_ID).catch(() => null);
     if (!channel) return;
 
-    // Check last messages to prevent duplicate welcomes
     const messages = await channel.messages.fetch({ limit: 20 });
 
     const alreadyWelcomed = messages.some(msg =>
@@ -240,27 +237,6 @@ client.on("guildMemberAdd", async (member) => {
 
   } catch (err) {
     console.error("Welcome event error:", err);
-  }
-
-});
-
-  } catch (err) {
-    console.error("Welcome event error:", err);
-  }
-
-});
-
-// ---------- AUTO MOVE STICKY ----------
-client.on("messageCreate", async message => {
-
-  if (message.author.bot) return;
-  if (message.channel.id !== VOUCH_CHANNEL_ID) return;
-
-  try {
-    await moveStickyToBottom(message.channel);
-    await ensureSingleSticky(message.channel);
-  } catch (err) {
-    console.error("Message create sticky error:", err);
   }
 
 });
