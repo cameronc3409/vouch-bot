@@ -1,5 +1,4 @@
 // ---------- index.js ----------
-
 console.log("BOT PROCESS STARTED");
 
 // ---------- IMPORTS ----------
@@ -16,8 +15,7 @@ const {
   Routes
 } = require("discord.js");
 
-// Axios for SellAuth
-const axios = require("axios");
+const axios = require("axios"); // ✅ Make sure axios is installed
 
 // ---------- CONFIG ----------
 const BOT_TOKEN = process.env.TOKEN;
@@ -28,7 +26,6 @@ const VOUCH_CHANNEL_ID = "1465800235673452722";
 const WELCOME_CHANNEL_ID = "1465839225789354145";
 const DATA_FILE = "./vouches.json";
 
-// SellAuth stock config
 const API_KEY = "5617211|cdpWyPOBL8BPWPBh5eAtip7fIuAcoFgMsBBulktJ193f760c";
 const STOCK_CHANNEL_ID = "1465838878970871889"; // Channel for restock embeds
 let lastStock = {};
@@ -41,10 +38,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => res.status(200).send("Bot is running!"));
-
-app.listen(PORT, () => {
-  console.log(`PORT OPENED ON ${PORT}`);
-});
+app.listen(PORT, () => console.log(`PORT OPENED ON ${PORT}`));
 
 // ---------- DATA HANDLING ----------
 function getData() {
@@ -73,6 +67,7 @@ const client = new Client({
 });
 
 // ---------- SLASH COMMAND ----------
+const STAR_EMOJI = "<:bluestar:1476760052106006598>";
 const commands = [
   new SlashCommandBuilder()
     .setName("vouch")
@@ -97,7 +92,6 @@ const commands = [
 ].map(c => c.toJSON());
 
 // ---------- STICKY SYSTEM ----------
-const STAR_EMOJI = "<:bluestar:1476760052106006598>";
 const STICKY_TITLE = `${STAR_EMOJI} Sylix Vouch Channel`;
 
 async function buildStickyEmbed() {
@@ -119,10 +113,9 @@ async function ensureSingleSticky(channel) {
   try {
     const messages = await channel.messages.fetch({ limit: 25 });
     const stickies = messages.filter(
-      m =>
-        m.author.id === client.user.id &&
-        m.embeds.length &&
-        m.embeds[0].title === STICKY_TITLE
+      m => m.author.id === client.user.id &&
+           m.embeds.length &&
+           m.embeds[0].title === STICKY_TITLE
     );
 
     if (stickies.size > 1) {
@@ -139,7 +132,6 @@ async function ensureSingleSticky(channel) {
 
     const embed = await buildStickyEmbed();
     return channel.send({ embeds: [embed] });
-
   } catch (err) {
     console.error("Error ensuring sticky:", err);
     return null;
@@ -150,12 +142,13 @@ async function moveStickyToBottom(channel) {
   try {
     const messages = await channel.messages.fetch({ limit: 10 });
     const sticky = messages.find(
-      m =>
-        m.author.id === client.user.id &&
-        m.embeds.length &&
-        m.embeds[0].title === STICKY_TITLE
+      m => m.author.id === client.user.id &&
+           m.embeds.length &&
+           m.embeds[0].title === STICKY_TITLE
     );
+
     if (!sticky) return ensureSingleSticky(channel);
+
     await sticky.delete().catch(() => {});
     const embed = await buildStickyEmbed();
     return channel.send({ embeds: [embed] });
@@ -165,7 +158,7 @@ async function moveStickyToBottom(channel) {
   }
 }
 
-// ---------- STOCK CHECK FUNCTION (FULL DEBUG) ----------
+// ---------- STOCK CHECK FUNCTION ----------
 async function checkStock(client) {
   try {
     console.log("===== Running stock check =====");
@@ -173,16 +166,17 @@ async function checkStock(client) {
     const channel = await client.channels.fetch(STOCK_CHANNEL_ID).catch(err => {
       console.error("Failed to fetch stock channel:", err);
     });
+
     if (!channel) {
       console.error("Stock channel not found! Check STOCK_CHANNEL_ID and permissions.");
       return;
     }
+
     console.log("Channel fetched:", channel.id);
 
     const res = await axios.get("https://api.sellauth.com/v1/products", {
       headers: { Authorization: `Bearer ${API_KEY}` }
     });
-    console.log("Raw SellAuth data:", JSON.stringify(res.data, null, 2));
 
     const products = res.data.data;
     if (!products || !products.length) {
@@ -191,21 +185,15 @@ async function checkStock(client) {
     }
 
     for (const product of products) {
-      console.log("Checking product:", product);
       const name = product.name || "UNKNOWN PRODUCT";
-      const stockRaw = product.stock;
-      const stock = Number(stockRaw);
-
-      console.log(`Product: ${name} | Stock raw: ${stockRaw} | Stock number: ${stock} | Last stock: ${lastStock[name]}`);
+      const stock = Number(product.stock);
 
       if (!(name in lastStock)) {
-        console.log(`Initializing lastStock for ${name}`);
-        lastStock[name] = 0;
+        lastStock[name] = 0; // initialize to 0 so first increase triggers
       }
 
       if (stock > lastStock[name]) {
         console.log(`Stock increased for ${name}: ${lastStock[name]} → ${stock} ✅ Sending embed...`);
-
         const embed = new EmbedBuilder()
           .setAuthor({ name: "Sylix", iconURL: "https://i.imgur.com/yourlogo.png" })
           .setTitle("Restock Notifications")
@@ -231,71 +219,54 @@ async function checkStock(client) {
 
 // ---------- READY ----------
 client.once("ready", async () => {
+  console.log(`Logged in as ${client.user.tag}`);
+
+  // Register slash commands
+  const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
   try {
-    console.log(`Logged in as ${client.user.tag}`);
-
-    // ---------- REGISTER SLASH COMMANDS ----------
-    const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
-    try {
-      await rest.put(
-        Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-        { body: commands }
-      );
-      console.log("Slash commands registered.");
-    } catch (err) {
-      console.error("Error registering commands:", err);
-    }
-
-    // ---------- STICKY VOUCH MESSAGE ----------
-    try {
-      const vouchChannel = await client.channels.fetch(VOUCH_CHANNEL_ID);
-      if (vouchChannel) {
-        await ensureSingleSticky(vouchChannel);
-      }
-    } catch (err) {
-      console.error("Sticky startup error:", err);
-    }
-
-    // ---------- INITIAL STOCK CHECK ----------
-    console.log("Running initial stock check...");
-    await checkStock(client);
-
-    // ---------- TEST EMBED FOR STOCK CHANNEL ----------
-    try {
-      const testChannel = await client.channels.fetch(STOCK_CHANNEL_ID);
-      if (testChannel) {
-        console.log("Sending test embed to verify stock channel...");
-        const testEmbed = new EmbedBuilder()
-          .setTitle("TEST EMBED")
-          .setDescription("✅ Bot can post in this channel")
-          .setColor("#00ff00")
-          .setTimestamp();
-        await testChannel.send({ embeds: [testEmbed] });
-      }
-    } catch (err) {
-      console.error("Failed to send test embed:", err);
-    }
-
-    // ---------- REPEATING STOCK CHECK ----------
-    setInterval(() => {
-      checkStock(client);
-    }, 60000);
-
+    await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
+    console.log("Slash commands registered.");
   } catch (err) {
-    console.error("Ready event error:", err);
+    console.error("Error registering commands:", err);
   }
+
+  // Sticky message in vouch channel
+  try {
+    const vouchChannel = await client.channels.fetch(VOUCH_CHANNEL_ID);
+    if (vouchChannel) await ensureSingleSticky(vouchChannel);
+  } catch (err) {
+    console.error("Sticky startup error:", err);
+  }
+
+  // ✅ Send test restock embed on startup
+  try {
+    const stockChannel = await client.channels.fetch(STOCK_CHANNEL_ID);
+    if (stockChannel) {
+      const testEmbed = new EmbedBuilder()
+        .setTitle("TEST EMBED")
+        .setDescription("This confirms the bot can post in this channel.")
+        .setColor("#00ff00")
+        .setTimestamp();
+      await stockChannel.send({ embeds: [testEmbed] });
+      console.log("Test restock embed sent ✅");
+    }
+  } catch (err) {
+    console.error("Failed to send test embed:", err);
+  }
+
+  // Start periodic stock checking
+  setInterval(() => checkStock(client), 60000); // every 60s
 });
 
 // ---------- WELCOME ----------
-client.on("guildMemberAdd", async (member) => {
+client.on("guildMemberAdd", async member => {
   try {
     const channel = await client.channels.fetch(WELCOME_CHANNEL_ID).catch(() => null);
     if (!channel) return;
 
     const messages = await channel.messages.fetch({ limit: 20 });
     const alreadyWelcomed = messages.some(msg =>
-      msg.author.id === client.user.id &&
-      msg.mentions.users.has(member.id)
+      msg.author.id === client.user.id && msg.mentions.users.has(member.id)
     );
     if (alreadyWelcomed) return;
 
@@ -303,11 +274,11 @@ client.on("guildMemberAdd", async (member) => {
       .setColor(0x4587ff)
       .setTitle("Welcome!")
       .setDescription(
-`**<:sylix:1468005258126163990> Welcome To Sylix.cc <@${member.id}>**
-<:discordemoji:1479274884809883762> Please make sure to [verify](https://discord.com/channels/1463364200540799040/1465839281808609381) to gain full access
-<:discordemoji:1479274884809883762> Check out our [website](https://sylix.cc/)
-<:discordemoji:1479274884809883762> If you need support please make a [ticket](https://discord.com/channels/1463364200540799040/1465800232502825275)
-<:discorde:1479274851444330570> Make sure to read all of the [rules](https://discord.com/channels/1463364200540799040/1465937574169411686)`
+        `**<:sylix:1468005258126163990> Welcome To Sylix.cc <@${member.id}>**
+<:discordemoji:1479274884809883762> Please verify to gain access
+<:discordemoji:1479274884809883762> Check our [website](https://sylix.cc/)
+<:discordemoji:1479274884809883762> Support tickets: <link>
+<:discorde:1479274851444330570> Read the [rules](https://discord.com/channels/1463364200540799040/1465937574169411686)`
       )
       .setThumbnail("https://i.ibb.co/ymn10dMY/your-image.png")
       .setFooter({
@@ -315,11 +286,7 @@ client.on("guildMemberAdd", async (member) => {
         iconURL: member.guild.iconURL()
       });
 
-    await channel.send({
-      content: `<@${member.id}>`,
-      embeds: [embed]
-    });
-
+    await channel.send({ content: `<@${member.id}>`, embeds: [embed] });
   } catch (err) {
     console.error("Welcome event error:", err);
   }
@@ -339,7 +306,6 @@ client.on("interactionCreate", async interaction => {
     const voucher = interaction.options.getUser("voucher") || interaction.user;
 
     const stars = STAR_EMOJI.repeat(rating);
-
     const data = getData();
     const newId = data.vouches.length + 1;
 
@@ -351,7 +317,6 @@ client.on("interactionCreate", async interaction => {
       voucherId: voucher.id,
       date: new Date().toISOString()
     });
-
     saveData(data);
 
     const embed = new EmbedBuilder()
@@ -362,48 +327,27 @@ client.on("interactionCreate", async interaction => {
       })
       .setTitle("Sylix.cc Vouches")
       .setDescription(
-`**Product**
-\`${product}\`
-
-**Rating**
-${stars}
-
-**Review**
-${description}`
+        `**Product**\n\`${product}\`\n\n**Rating**\n${stars}\n\n**Review**\n${description}`
       )
       .setThumbnail(voucher.displayAvatarURL({ size: 512 }))
       .setFooter({ text: `Total Vouches: ${data.vouches.length}` })
       .setTimestamp();
 
-    const channel = await client.channels
-      .fetch(VOUCH_CHANNEL_ID)
-      .catch(() => null);
-
-    if (!channel)
-      return interaction.editReply({ content: "Vouch channel not found." });
+    const channel = await client.channels.fetch(VOUCH_CHANNEL_ID).catch(() => null);
+    if (!channel) return interaction.editReply({ content: "Vouch channel not found." });
 
     await channel.send({ embeds: [embed] });
-
     await moveStickyToBottom(channel);
     await ensureSingleSticky(channel);
 
-    await interaction.editReply({
-      content: "✅ Your vouch has been submitted."
-    });
+    await interaction.editReply({ content: "✅ Your vouch has been submitted." });
 
   } catch (err) {
     console.error("Interaction error:", err);
-
     if (interaction.deferred || interaction.replied) {
-      await interaction.followUp({
-        content: "❌ Something went wrong.",
-        ephemeral: true
-      });
+      await interaction.followUp({ content: "❌ Something went wrong.", ephemeral: true });
     } else {
-      await interaction.reply({
-        content: "❌ Something went wrong.",
-        ephemeral: true
-      });
+      await interaction.reply({ content: "❌ Something went wrong.", ephemeral: true });
     }
   }
 });
@@ -411,6 +355,4 @@ ${description}`
 // ---------- LOGIN ----------
 client.login(BOT_TOKEN)
   .then(() => console.log("Bot logged in successfully."))
-  .catch(err => {
-    console.error("Bot login failed:", err);
-  });
+  .catch(err => console.error("Bot login failed:", err));
